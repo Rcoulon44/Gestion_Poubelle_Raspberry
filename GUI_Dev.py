@@ -5,7 +5,6 @@
 # email = rcoulon44@gmail.com
 
 # A terminer
-#   - Mise à jour de la date de passage en fonction de la date du jour
 #   - Menu à faire
 #   - Configuration via un fichier json
 #   - Faire une fenêtre de configuration
@@ -32,34 +31,12 @@ first_collect_day = "2021-02-10"
 
 
 # Definition des modules utiles
-def initialisation():
-    global first_collect_day
-    global last_counter_tash_1
-    global year
-    next_collect_date = datetime.date.fromisoformat(first_collect_day)
-    while next_collect_date < Now():
-        next_collect_date = Next_Collect_Day(next_collect_date)
-    # history = Read_Data_Json()
-    # if str(year)  not in history:
-    #     year_history = {}
-    #     year_history['history_date'] = []
-    #     year_history["counter_history"] = {}
-    #     history[str(year)] = year_history
-    #     with open("history.json", "w") as json_history:
-    #         json.dump(history, json_history, indent=4)
-    print(Now())
-    print(next_collect_date)
-    print(Yesterday_Collect_Day(next_collect_date))
-    print(year)
-    # print(history)
-    return next_collect_date
 
-
+# Modules généraux
 def Now():
     return datetime.date.today()
 
-def Next_Collect_Day(date):
-    global freq
+def Next_Collect_Day(freq, date):
     step_collect = Periode[freq]
     delta_day = datetime.timedelta(days = step_collect)
     return date + delta_day
@@ -67,6 +44,13 @@ def Next_Collect_Day(date):
 def Yesterday_Collect_Day(date):
     return date - datetime.timedelta(days = 1)
 
+def Read_Data_Json():
+    with open("history.json", mode='r') as json_history:
+        history= json.load(json_history)
+        return history
+
+
+# Modules liés au compteurs
 def Increase_Counter_1():
     global counter_trash_1
     global last_counter_tash_1
@@ -98,13 +82,8 @@ def Reset_Counter():
     label_counter1_date.configure(text=last_counter_tash_1)
     label_counter2_date.configure(text=last_counter_tash_2)
 
-def Read_Data_Json():
-    with open("history.json", mode='r') as json_history:
-        history= json.load(json_history)
-    return history
-
 def Write_Counter_Data_Json(counter_name, counter, last_counter_name, last_counter):
-    global year
+    year = Now().year
     history = Read_Data_Json()
     if str(year) not in history:
         year_history = {}
@@ -132,41 +111,12 @@ def Write_Counter_Data_Json(counter_name, counter, last_counter_name, last_count
     with open("history.json", "w") as json_history:
         json.dump(history, json_history, indent=4)
 
-def Write_Date_History_Data_Json(date):
-    global last_counter_tash_1
-    global year
-    history = Read_Data_Json()
-    year_history = history[str(year)]
-    history_date = year_history["history_date"]
-    if date != "na":
-        if date not in history_date:
-            history_date.append(date)
-    year_history["history_date"] = history_date
-    history[year] = year_history
-    with open("history.json", "w") as json_history:
-        json.dump(history, json_history, indent=4)
 
-def Display_Date_History_Json():
-    global year
-    history = Read_Data_Json()
-    year_history = history[str(year)]
-    history_date = year_history["history_date"]
-    print(history_date)
-
-def Update_Indicateur_Poubelle():
-    global next_collect_date
-    jour = Now()
-    veille = Yesterday_Collect_Day(next_collect_date)
-    if jour == veille:
-        canvas_indicateur.config(bg="#17f546")
-    elif jour == next_collect_date:
-        canvas_indicateur.config(bg="#17f546")
-    else:
-        canvas_indicateur.config(bg="#656565")
-
-def Update(year, next_collect_date):
-    global now
-    global next_collect
+# Modules principaux (qui se répètent toutes les heures)
+def Update(year, first_collect_day, now, next_collect, freq):
+    next_collect_date = datetime.date.fromisoformat(first_collect_day)
+    while next_collect_date < Now():
+        next_collect_date = Next_Collect_Day(freq, next_collect_date)
     history = Read_Data_Json()
     if str(year) not in history:
         year_history = {}
@@ -189,18 +139,49 @@ def Update(year, next_collect_date):
     label_counter2_counter.configure(text=counter_trash_2)
     label_counter1_date.configure(text=last_counter_tash_1)
     label_counter2_date.configure(text=last_counter_tash_2)
-    print("Label mise à jour")
     # Mise à jour de l'historique des levées
-    Write_Date_History_Data_Json(last_counter_tash_1)
+    Write_Date_History_Data_Json(year, last_counter_tash_1)
     # Mise à jour de l'indicateur de passage des poubelles
-    Update_Indicateur_Poubelle()
+    Update_Indicateur_Poubelle(next_collect_date)
     # Boucle toute les heure
     main.after(3600000, Update, year, next_collect_date)
+    # main.after(10000, Update, year, next_collect_date)
     return counter_trash_1, counter_trash_2, last_counter_tash_1, last_counter_tash_2
+
+def Write_Date_History_Data_Json(year, last_counter_tash_1):
+    # print("Ecriture des dates pour les poubelles menagères")
+    history = Read_Data_Json()
+    year_history = history[str(year)]
+    history_date = year_history["history_date"]
+    if last_counter_tash_1 != "na":
+        if last_counter_tash_1 not in history_date:
+            history_date.append(last_counter_tash_1)
+            year_history["history_date"] = history_date
+            history[year] = year_history
+            with open("history.json", "w") as json_history:
+                json.dump(history, json_history, indent=4)
+
+def Update_Indicateur_Poubelle(next_collect_date):
+    # print("Verification de l'indicateur")
+    jour = Now()
+    veille = Yesterday_Collect_Day(next_collect_date)
+    if jour == veille:
+        canvas_indicateur.config(bg="#17f546")
+    elif jour == next_collect_date:
+        canvas_indicateur.config(bg="#17f546")
+    else:
+        canvas_indicateur.config(bg="#656565")
+
+# Modules pour les historiques
+def Display_Date_History_Json():
+    year = Now().year
+    history = Read_Data_Json()
+    year_history = history[str(year)]
+    history_date = year_history["history_date"]
+    print(history_date)
 
 
 # Variable global
-
 now = "Nous sommes le - "
 next_collect = " - "
 
@@ -210,6 +191,7 @@ last_counter_tash_1 = "na"
 last_counter_tash_2 = "na"
 
 year = Now().year
+
 
 
 # Interface graphique
@@ -288,11 +270,12 @@ button_reset_counter = tkinter.Button(frame_counter, text="Reset", bg=text_color
 button_reset_counter.grid(column=0, row=3, sticky="W", padx=20, pady=0)
 
 # Bouton de test pour les fonctions
-button_test = tkinter.Button(frame_counter, text="Test", bg=text_color, fg="red", width=15, height=2, command=Update_Indicateur_Poubelle)
+button_test = tkinter.Button(frame_counter, text="Test", bg=text_color, fg="red", width=15, height=2, command=Display_Date_History_Json)
 button_test.grid(column=2, row=3, sticky="E", padx=20, pady=0)
 
-next_collect_date = initialisation()
-counter_history_update = Update(year, next_collect_date)
+# Programme pour l'interface
+# next_collect_date = initialisation()
+counter_history_update = Update(year, first_collect_day, now, next_collect, freq)
 counter_trash_1 = (counter_history_update[0])
 counter_trash_2 = (counter_history_update[1])
 last_counter_tash_1 = (counter_history_update[2])
